@@ -6,7 +6,7 @@ COPY . .
 RUN make install-requirements && make VERIFY=true all
 
 ############# gardener-extension-os-coreos-alicloud
-FROM builder AS gardener-extension-os-coreos-alicloud
+FROM alpine:3.11.3 AS gardener-extension-os-coreos-alicloud
 
 COPY --from=builder /go/bin/gardener-extension-os-coreos-alicloud /gardener-extension-os-coreos-alicloud
 ENTRYPOINT ["/gardener-extension-os-coreos-alicloud"]
