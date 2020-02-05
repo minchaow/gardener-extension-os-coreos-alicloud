@@ -7,7 +7,7 @@ systemctl stop update-engine
 
 #Fix mis-configuration of dockerd
 mkdir -p /etc/docker
-echo '{ "storage-driver": "devicemapper" }' > /etc/docker/daemon.json
+echo '{ "storage-driver": "overlay2" }' > /etc/docker/daemon.json
 sed -i '/Environment=DOCKER_SELINUX=--selinux-enabled=true/s/^/#/g' /run/systemd/system/docker.service
 
 mkdir -p '/'
