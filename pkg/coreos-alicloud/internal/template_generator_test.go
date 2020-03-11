@@ -17,6 +17,7 @@ package internal_test
 import (
 	. "github.com/gardener/gardener-extension-os-coreos-alicloud/pkg/coreos-alicloud/internal"
 
+	. "github.com/gardener/gardener-extension-os-coreos-alicloud/pkg/coreos-alicloud/coreos"
 	"github.com/gobuffalo/packr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -27,17 +28,17 @@ var (
 )
 
 var _ = Describe("#TemplateBashGenerator", func() {
-	var ExpectedCloudInit []byte
 
-	BeforeSuite(func() {
-		box := packr.NewBox("./testfiles")
-		var err error
-
-		ExpectedCloudInit, err = box.Find("cloud-init.sh")
-		Expect(err).NotTo(HaveOccurred())
-	})
+	box := packr.NewBox("./testfiles")
+	var (
+		ExpectedCloudInit []byte
+		err               error
+	)
 
 	It("should render correctly", func() {
+		ExpectedCloudInit, err = box.Find("cloud-init.sh")
+		Expect(err).NotTo(HaveOccurred())
+
 		gen := NewCloudInitGenerator(DefaultUnitsPath)
 
 		cloudInit, err := gen.Generate(&OperatingSystemConfig{
@@ -62,6 +63,48 @@ var _ = Describe("#TemplateBashGenerator", func() {
 				},
 			},
 			Bootstrap: true,
+		})
+
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cloudInit).To(Equal(ExpectedCloudInit))
+	})
+
+	It("should render correctly", func() {
+		ExpectedCloudInit, err = box.Find("cloud-init-reconcile.sh")
+		Expect(err).NotTo(HaveOccurred())
+
+		gen := NewCloudInitGenerator(DefaultUnitsPath)
+
+		cloudInit, err := gen.Generate(&OperatingSystemConfig{
+			Files: []*File{
+				{
+					Path:        "/foo",
+					Content:     []byte("bar"),
+					Permissions: &onlyOwnerPerm,
+				},
+			},
+
+			Units: []*Unit{
+				{
+					Name: "containerd.service",
+					DropIns: []*DropIn{
+						{
+							Name:    "11-exec-start-config.conf",
+							Content: []byte(ContainerDUnitDropInContent),
+						},
+					},
+				},
+				{
+					Name: "docker.service",
+					DropIns: []*DropIn{
+						{
+							Name:    "11-exec-start-config.conf",
+							Content: []byte(DockerUnitDropInContent),
+						},
+					},
+				},
+			},
+			Bootstrap: false,
 		})
 
 		Expect(err).NotTo(HaveOccurred())

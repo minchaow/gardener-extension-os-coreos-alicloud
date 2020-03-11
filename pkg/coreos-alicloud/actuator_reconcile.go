@@ -20,6 +20,7 @@ import (
 
 	"github.com/gardener/gardener-extension-os-coreos-alicloud/pkg/coreos-alicloud/internal"
 	"github.com/gardener/gardener-extension-os-coreos-alicloud/pkg/coreos-alicloud/internal/cloudinit"
+	consts "github.com/gardener/gardener/pkg/apis/core/v1beta1/constants"
 
 	extensionsv1alpha1 "github.com/gardener/gardener/pkg/apis/extensions/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
@@ -61,6 +62,8 @@ func (a *actuator) cloudConfigFromOperatingSystemConfig(ctx context.Context, con
 			})
 	}
 
+	enableContainerD := config.Spec.CRIConfig != nil && config.Spec.CRIConfig.Name == extensionsv1alpha1.CRINameContainerD
+
 	units := make([]*internal.Unit, 0, len(config.Spec.Units))
 	for _, unit := range config.Spec.Units {
 		var content []byte
@@ -72,7 +75,20 @@ func (a *actuator) cloudConfigFromOperatingSystemConfig(ctx context.Context, con
 		for _, dropIn := range unit.DropIns {
 			dropIns = append(dropIns, &internal.DropIn{Name: dropIn.Name, Content: []byte(dropIn.Content)})
 		}
+
+		if unit.Name == consts.OperatingSystemConfigUnitNameContainerDService && enableContainerD {
+			dropIns = append(dropIns, &internal.DropIn{Name: "11-exec-start-config.conf", Content: []byte(ContainerDUnitDropInContent)})
+		}
+
 		units = append(units, &internal.Unit{Name: unit.Name, Content: content, DropIns: dropIns})
+	}
+
+	if config.Spec.Purpose == extensionsv1alpha1.OperatingSystemConfigPurposeReconcile && enableContainerD {
+		unit := internal.Unit{Name: consts.OperatingSystemConfigUnitNameDockerService}
+		unit.DropIns = []*internal.DropIn{&internal.DropIn{
+			Name:    "11-exec-start-config.conf",
+			Content: []byte(DockerUnitDropInContent),
+		}}
 	}
 
 	return internal.NewCloudInitGenerator(internal.DefaultUnitsPath).
